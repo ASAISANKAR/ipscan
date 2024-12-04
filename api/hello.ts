@@ -1,53 +1,18 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import mongoose from 'mongoose';
-import { config } from 'dotenv';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Load environment variables from .env file
-config();
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');  // Allows any origin to access the resource (You can replace '*' with 'http://localhost:3000' for more restricted access)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');  // Allow GET, POST, and OPTIONS methods
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');  // Allow Content-Type header
 
-// MongoDB connection string from environment variable
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://saisankar:system@cluster0.gv6neug.mongodb.net/ipcap';
-
-// Define the Schema for UserInfo
-const userInfoSchema = new mongoose.Schema({
-  ipAddress: String,
-  systemInfo: Object,
-  websiteLink: String,
-  timestamp: { type: Date, default: Date.now },
-});
-
-const UserInfo = mongoose.model('UserInfo', userInfoSchema);
-
-// MongoDB connection logic
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.log('Error connecting to MongoDB:', err));
-
-// API handler function for Vercel
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'POST') {
-    // Storing user information logic
-    try {
-      const { ipAddress, systemInfo } = req.body;
-
-      // Capture the website link from the Referer or Origin header
-      const referer = req.headers.referer || req.headers.origin;
-      const websiteLink = referer || 'https://your-default-site-url.com';  
-
-      // Create a new user entry in MongoDB
-      const newUser = new UserInfo({ ipAddress, systemInfo, websiteLink });
-      await newUser.save();
-
-      res.status(200).json({ message: 'User info and website link stored successfully!' });
-    } catch (error) {
-      console.error('Error storing user info:', error);
-      res.status(500).json({ message: 'Error storing user info' });
-    }
-  } else if (req.method === 'GET') {
-    // Hello endpoint logic
-    const { name = 'World' } = req.query;
-    res.status(200).json({ message: `Hello ${name}!` });
-  } else {
-    res.status(405).json({ message: 'Method Not Allowed' });
+  // Handle preflight request (OPTIONS request)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();  // Respond with a 200 status for OPTIONS (preflight) requests
   }
+
+  const { name = 'World' } = req.query;
+  return res.json({
+    message: `Hello ${name}!`,
+  });
 }
