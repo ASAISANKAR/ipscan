@@ -1,69 +1,59 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import mongoose from 'mongoose';  // Mongoose for MongoDB interaction
+import mongoose from 'mongoose'; // Mongoose for MongoDB interaction
 
-// MongoDB connection string (replace with your actual MongoDB URI)
 const MONGODB_URI = 'mongodb+srv://saisankar:system@cluster0.gv6neug.mongodb.net/ipcap';
 
-// Define the Schema for storing user info
+// MongoDB schema and model
 const userInfoSchema = new mongoose.Schema({
   ipAddress: String,
   systemInfo: Object,
-  websiteLink: String,  // Field to store the website link
+  websiteLink: String,
   timestamp: { type: Date, default: Date.now },
 });
 
-// Create a Mongoose model based on the schema
 const UserInfo = mongoose.model('UserInfo', userInfoSchema);
 
-// Function to connect to MongoDB (called before saving data)
+// MongoDB connection function
 async function connectToDatabase() {
   if (mongoose.connection.readyState === 1) {
-    // If already connected, no need to connect again
-    return;
+    return; // Already connected
   }
-
-  // Connect to MongoDB
-  await mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  await mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');  // Allows any origin to access the resource
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');  // Allow GET, POST, and OPTIONS methods
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');  // Allows all origins (for development, use a specific origin like 'http://localhost:3000' instead of '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');  // Allow specific methods
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');  // Allow Content-Type header
 
-  // Handle preflight request (OPTIONS request)
+  // Handle OPTIONS request for preflight check
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();  // Respond with a 200 status for OPTIONS (preflight) requests
+    return res.status(200).end(); // Respond with a 200 status for preflight (OPTIONS) requests
   }
 
-  // Ensure the request is a POST request
+  // Handle POST request
   if (req.method === 'POST') {
     try {
-      // Get the IP address and system information from the request body
+      // Extract IP and system info from the request body
       const { ipAddress, systemInfo } = req.body;
 
-      // Capture the website link from the Referer or Origin header
+      // Capture the website link from the referer or origin header
       const referer = req.headers.referer || req.headers.origin;
       const websiteLink = referer || 'https://your-default-site-url.com';  
 
-      // Connect to the database
+      // Connect to the MongoDB database
       await connectToDatabase();
 
-      // Create a new user entry
+      // Save user info to MongoDB
       const newUser = new UserInfo({
         ipAddress,
         systemInfo,
         websiteLink,
       });
-
-      // Save the user info to MongoDB
       await newUser.save();
 
-      // Respond with success message
+      // Return a success message
       return res.status(200).json({
         message: 'User info stored successfully!',
       });
@@ -73,6 +63,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Default response for GET or unsupported methods
+  // Respond with 405 for unsupported methods
   return res.status(405).json({ message: 'Method Not Allowed' });
 }
